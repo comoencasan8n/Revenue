@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../lib/supabase';
-import { RackData, Room, Reservation } from '../types';
+import { RackData } from '../types';
 
 export const RevenueService = {
   /**
@@ -11,27 +11,42 @@ export const RevenueService = {
 
   /**
    * Sincroniza los datos del Rack de Moncake con Supabase
+   * Procesa todas las habitaciones para detectar cancelaciones (huecos libres)
    */
-  syncRackToSupabase: async (rackData: RackData) => {
+  syncRackToSupabase: async (rackData: RackData, syncType: string = 'MANUAL', userEmail?: string) => {
     const snapshots = [];
-    const fechaSnapshot = new Date().toISOString().split('T')[0];
 
     for (const room of rackData.habitaciones) {
-      for (const reservation of room.reservas) {
-        // Solo procesamos reservas confirmadas (estado suele ser > 0)
-        if (reservation.estado > 0) {
-          const precioNetoBase = RevenueService.calculateBaseImp(reservation.precio_total);
+      // Si la habitación no tiene reservas en el rango, está disponible
+      if (!room.reservas || room.reservas.length === 0) {
+        snapshots.push({
+          fecha: rackData.fecha_inicio,
+          alojamiento_id: room.idalojamiento,
+          habitacion_id: room.idhabitacion,
+          nombre_habitacion: room.nombre,
+          ocupado: false,
+          precio_bruto: 0,
+          precio_neto_base: 0,
+          canal: null,
+          id_reserva: null,
+          last_synced_at: new Date().toISOString()
+        });
+      } else {
+        for (const reservation of room.reservas) {
+          const isOccupied = reservation.estado > 0;
+          const precioNetoBase = isOccupied ? RevenueService.calculateBaseImp(reservation.precio_total) : 0;
           
           snapshots.push({
-            fecha: reservation.checkin, // Guardamos por fecha de estancia (simplificado)
+            fecha: reservation.checkin,
             alojamiento_id: room.idalojamiento,
             habitacion_id: room.idhabitacion,
             nombre_habitacion: room.nombre,
-            ocupado: true,
-            precio_bruto: reservation.precio_total,
+            ocupado: isOccupied,
+            precio_bruto: isOccupied ? reservation.precio_total : 0,
             precio_neto_base: precioNetoBase,
-            canal: reservation.canal || 'moncake',
-            id_reserva: reservation.id
+            canal: isOccupied ? (reservation.canal || 'moncake') : null,
+            id_reserva: isOccupied ? reservation.id : null,
+            last_synced_at: new Date().toISOString()
           });
         }
       }
@@ -42,39 +57,24 @@ export const RevenueService = {
         .from('rack_history')
         .upsert(snapshots, { onConflict: 'fecha, habitacion_id' });
       
-      if (error) console.error('Error syncing to Supabase:', error);
+      if (error) {
+        console.error('Error syncing to Supabase:', error);
+        await RevenueService.logSync(syncType, userEmail, `Error: ${error.message}`, snapshots.length);
+      } else {
+        await RevenueService.logSync(syncType, userEmail, 'Success', snapshots.length);
+      }
     }
   },
 
   /**
-   * Obtiene el reparto de gastos generales ("Como en Casa")
-   * Por ahora implementamos reparto por volumen de facturación (Revenue)
+   * Registra el resultado de una sincronización
    */
-  distributeGeneralCosts: async (totalGeneralCost: number, month: string) => {
-    // 1. Obtener revenue total por edificio en ese mes
-    const { data: revenueData, error } = await supabaseAdmin
-      .from('rack_history')
-      .select('precio_neto_base, alojamientos(edificio_id)')
-      .filter('fecha', 'gte', `${month}-01`)
-      .filter('fecha', 'lte', `${month}-31`);
-
-    if (error || !revenueData) return [];
-
-    const revenueByBuilding: Record<string, number> = {};
-    let totalRevenue = 0;
-
-    revenueData.forEach((row: any) => {
-      const edificioId = row.alojamientos?.edificio_id;
-      if (edificioId) {
-        revenueByBuilding[edificioId] = (revenueByBuilding[edificioId] || 0) + row.precio_neto_base;
-        totalRevenue += row.precio_neto_base;
-      }
+  logSync: async (tipo: string, usuario_email: string | undefined, resultado: string, registros: number) => {
+    await supabaseAdmin.from('sync_logs').insert({
+      tipo,
+      usuario_email,
+      resultado,
+      registros_procesados: registros
     });
-
-    // 2. Repartir proporcionalmente
-    return Object.entries(revenueByBuilding).map(([edificioId, revenue]) => ({
-      edificioId,
-      costeProrrateado: (revenue / totalRevenue) * totalGeneralCost
-    }));
   }
 };

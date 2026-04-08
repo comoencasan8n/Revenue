@@ -8,7 +8,8 @@ import {
   Users,
   LogOut,
   Menu,
-  X
+  X,
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '@/src/components/ui/button';
@@ -23,9 +24,9 @@ interface LayoutProps {
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'matrix', label: 'Revenue Matrix', icon: TableIcon },
-  { id: 'pacing', label: 'Pacing & Pick-up', icon: TrendingUp },
+  { id: 'expenses', label: 'Gastos (Excel)', icon: Receipt },
   { id: 'buildings', label: 'Edificios', icon: Building2 },
-  { id: 'admin', label: 'Administración', icon: Settings },
+  { id: 'admin', label: 'Mi Cuenta', icon: Settings },
 ];
 
 export default function Layout({ children, activeTab, setActiveTab }: LayoutProps) {
@@ -62,19 +63,8 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-900">
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold">
-            RM
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium truncate">Revenue Manager</p>
-            <p className="text-xs text-slate-500 truncate">comoencasa@gmail.com</p>
-          </div>
-          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-            <LogOut size={18} />
-          </Button>
-        </div>
+      <div className="p-6 border-t border-slate-900">
+        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Capa de Decisión v1.0</p>
       </div>
     </div>
   );

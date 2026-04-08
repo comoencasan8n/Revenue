@@ -6,28 +6,72 @@
 import React, { useEffect, useState } from 'react';
 import Layout from './components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/src/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 import BuildingManager from './components/BuildingManager';
+import ExpensesManager from './components/ExpensesManager';
+import Login from './components/Login';
 import { fetchRackData } from './services/moncakeService';
-import { RackData } from './types';
+import { RackData, User } from './types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
 import { Badge } from '@/src/components/ui/badge';
 import { Skeleton } from '@/src/components/ui/skeleton';
+import { Button } from '@/src/components/ui/button';
+import { Input } from '@/src/components/ui/input';
 import { Toaster } from 'sonner';
+import { toast } from 'sonner';
+import axios from 'axios';
+import { History, LogOut, Key } from 'lucide-react';
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = React.useState('dashboard');
   const [rackData, setRackData] = useState<RackData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'matrix' || activeTab === 'dashboard') {
+    const savedUser = localStorage.getItem('rms_user');
+    if (savedUser) setUser(JSON.parse(savedUser));
+  }, []);
+
+  useEffect(() => {
+    if (user && (activeTab === 'matrix' || activeTab === 'dashboard')) {
       setIsLoading(true);
       fetchRackData({})
         .then(data => setRackData(data))
         .finally(() => setIsLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, user]);
+
+  const handleLogin = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('rms_user', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('rms_user');
+  };
+
+  const handleHistoricalSync = async () => {
+    setIsSyncing(true);
+    try {
+      const response = await axios.post('/api/sync/historical');
+      toast.success(response.data.message);
+    } catch (error) {
+      toast.error('Error en la sincronización histórica');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <>
+        <Toaster position="top-right" />
+        <Login onLogin={handleLogin} />
+      </>
+    );
+  }
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
@@ -38,23 +82,34 @@ export default function App() {
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">
               {activeTab === 'dashboard' && 'Dashboard Ejecutivo'}
               {activeTab === 'matrix' && 'Revenue Matrix'}
-              {activeTab === 'pacing' && 'Pacing & Pick-up'}
+              {activeTab === 'expenses' && 'Gestión de Gastos'}
               {activeTab === 'buildings' && 'Gestión de Edificios'}
               {activeTab === 'admin' && 'Configuración del Sistema'}
             </h2>
-            <p className="text-slate-500">
-              {activeTab === 'dashboard' && 'Resumen de rendimiento y KPIs principales.'}
-              {activeTab === 'matrix' && 'Análisis detallado de precios y ocupación por tipología.'}
-              {activeTab === 'pacing' && 'Ritmo de reservas y comparación histórica.'}
-              {activeTab === 'buildings' && 'Estado y configuración de los establecimientos.'}
-              {activeTab === 'admin' && 'Gestión de costes, comisiones y reglas de negocio.'}
-            </p>
+            <div className="flex items-center gap-2 text-slate-500">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100">
+                {user.role}
+              </Badge>
+              <span>•</span>
+              <span>{user.email}</span>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <div className="bg-white border rounded-lg px-3 py-2 text-sm font-medium shadow-sm">
-              Hoy: {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </div>
+            {user.role === 'DIRECCION' && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleHistoricalSync}
+                disabled={isSyncing}
+              >
+                <History className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                Sincronizar Año Pasado
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={handleLogout} title="Cerrar Sesión">
+              <LogOut className="h-4 w-4 text-slate-500" />
+            </Button>
           </div>
         </header>
 
@@ -94,7 +149,7 @@ export default function App() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">€28.15</div>
-                  <p className="text-xs text-slate-500">Calculado con costes variables</p>
+                  <p className="text-xs text-slate-500">Calculado con costes reales</p>
                 </CardContent>
               </Card>
             </div>
@@ -127,7 +182,7 @@ export default function App() {
                     </TableHeader>
                     <TableBody>
                       {rackData?.habitaciones.map(room => {
-                        const res = room.reservas[0]; // Simplificado para el MVP
+                        const res = room.reservas[0];
                         return (
                           <TableRow key={room.idhabitacion}>
                             <TableCell className="font-medium">{room.nombre}</TableCell>
@@ -160,6 +215,10 @@ export default function App() {
             </Card>
           )}
 
+          {activeTab === 'expenses' && (
+            <ExpensesManager />
+          )}
+
           {activeTab === 'buildings' && (
             <BuildingManager />
           )}
@@ -168,12 +227,30 @@ export default function App() {
             <div className="grid gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Configuración de Comisiones</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="text-amber-500" />
+                    Seguridad de la Cuenta
+                  </CardTitle>
+                  <CardDescription>Gestiona tu clave de acceso al sistema.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-slate-500 mb-4">Define el porcentaje de comisión por canal y edificio.</p>
-                  <div className="h-[200px] flex items-center justify-center border rounded-lg bg-slate-50 text-slate-400 italic">
-                    Módulo de administración de comisiones en desarrollo (Fase 2)
+                  <div className="max-w-sm space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Nueva Clave</label>
+                      <Input type="password" placeholder="Mínimo 4 caracteres" id="new-pass" />
+                    </div>
+                    <Button onClick={async () => {
+                      const pass = (document.getElementById('new-pass') as HTMLInputElement).value;
+                      if (pass.length < 4) return toast.error('Clave demasiado corta');
+                      try {
+                        await axios.post('/api/auth/update-password', { email: user.email, newPassword: pass });
+                        toast.success('Clave actualizada correctamente');
+                      } catch (e) {
+                        toast.error('Error al actualizar clave');
+                      }
+                    }}>
+                      Actualizar Clave
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

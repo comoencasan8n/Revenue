@@ -6,10 +6,12 @@
 export interface Building {
   id: string;
   name: string;
-  contractType: 'FIXED' | 'VARIABLE' | 'HYBRID';
-  fixedValue?: number;
-  variablePercentage?: number;
-  minGuaranteed?: number;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  role: 'DIRECCION' | 'REVENUE' | 'RECEPCION';
 }
 
 export interface Accommodation {
@@ -17,23 +19,6 @@ export interface Accommodation {
   buildingId: string;
   name: string;
   targetMargin?: number;
-}
-
-export interface Distributor {
-  id: string;
-  name: string;
-}
-
-export interface ChannelCommission {
-  distributorId: string;
-  buildingId: string;
-  percentage: number;
-}
-
-export interface ExpenseConfig {
-  concept: string;
-  category: 'VARIABLE' | 'FIXED';
-  distributionMethod: 'PER_UNIT' | 'PER_OCCUPANCY' | 'DIRECT';
 }
 
 export interface Reservation {
@@ -70,8 +55,9 @@ export interface RackData {
 }
 
 export interface Expense {
+  id?: string;
   fecha: string;
-  edificio: string;
+  edificio_id: string;
   concepto: string;
-  importe: number;
+  importe_base: number;
 }

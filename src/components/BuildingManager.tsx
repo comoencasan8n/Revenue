@@ -5,7 +5,9 @@ import {
   Building2, 
   Save, 
   RefreshCw,
-  MapPin
+  MapPin,
+  Target,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/src/components/ui/card';
@@ -22,25 +24,28 @@ export default function BuildingManager() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [alojamientos, setAlojamientos] = useState<Accommodation[]>([]);
   const [pmsAlojamientos, setPmsAlojamientos] = useState<any[]>([]);
+  const [competitors, setCompetitors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [newBuilding, setNewBuilding] = useState({
+  const [newCompetitor, setNewCompetitor] = useState({
     nombre: '',
-    tipo_contrato: 'FIJO' as const,
-    valor_fijo: 0
+    url_booking: '',
+    edificio_id: ''
   });
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [bRes, aRes, rackRes] = await Promise.all([
+      const [bRes, aRes, rackRes, cRes] = await Promise.all([
         axios.get('/api/config/buildings'),
         axios.get('/api/config/alojamientos'),
-        fetchRackData({})
+        fetchRackData({}),
+        axios.get('/api/config/competitors')
       ]);
       
       setBuildings(bRes.data);
       setAlojamientos(aRes.data);
+      setCompetitors(cRes.data);
       
       // Extraer tipologías únicas del Rack de Moncake
       const uniqueAlojamientos = Array.from(
@@ -62,15 +67,25 @@ export default function BuildingManager() {
     loadData();
   }, []);
 
-  const handleAddBuilding = async () => {
-    if (!newBuilding.nombre) return toast.error('El nombre es obligatorio');
+  const handleAddCompetitor = async () => {
+    if (!newCompetitor.nombre || !newCompetitor.edificio_id) return toast.error('Nombre y edificio son obligatorios');
     try {
-      await axios.post('/api/config/buildings', newBuilding);
-      toast.success('Edificio añadido correctamente');
-      setNewBuilding({ nombre: '', tipo_contrato: 'FIJO', valor_fijo: 0 });
+      await axios.post('/api/config/competitors', newCompetitor);
+      toast.success('Competidor añadido al CompSet');
+      setNewCompetitor({ nombre: '', url_booking: '', edificio_id: '' });
       loadData();
     } catch (error) {
-      toast.error('Error al añadir edificio');
+      toast.error('Error al añadir competidor');
+    }
+  };
+
+  const handleDeleteCompetitor = async (id: string) => {
+    try {
+      await axios.delete(`/api/config/competitors/${id}`);
+      toast.success('Competidor eliminado');
+      loadData();
+    } catch (error) {
+      toast.error('Error al eliminar competidor');
     }
   };
 
@@ -87,89 +102,109 @@ export default function BuildingManager() {
   return (
     <div className="space-y-8">
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Gestión de Edificios */}
+        {/* Listado de Edificios */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="text-blue-500" />
-              Nuevo Edificio
+              Edificios Activos
             </CardTitle>
-            <CardDescription>Define los establecimientos para agrupar las tipologías.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nombre del Edificio</Label>
-              <Input 
-                placeholder="Ej: Edificio Santa María" 
-                value={newBuilding.nombre}
-                onChange={e => setNewBuilding({...newBuilding, nombre: e.target.value})}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Tipo de Contrato</Label>
-                <Select 
-                  value={newBuilding.tipo_contrato}
-                  onValueChange={(v: any) => setNewBuilding({...newBuilding, tipo_contrato: v})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="FIJO">Fijo</SelectItem>
-                    <SelectItem value="VARIABLE">Variable (%)</SelectItem>
-                    <SelectItem value="HIBRIDO">Híbrido</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Coste Fijo / %</Label>
-                <Input 
-                  type="number" 
-                  value={newBuilding.valor_fijo}
-                  onChange={e => setNewBuilding({...newBuilding, valor_fijo: Number(e.target.value)})}
-                />
-              </div>
-            </div>
-            <Button className="w-full" onClick={handleAddBuilding}>
-              <Plus className="mr-2 h-4 w-4" /> Añadir Edificio
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Listado de Edificios */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Edificios Configurados</CardTitle>
+            <CardDescription>Establecimientos autorizados para el análisis de revenue.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Contrato</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">ID Sistema</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {buildings.map(b => (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.name}</TableCell>
-                    <TableCell>{b.contractType}</TableCell>
-                    <TableCell className="text-right">
-                      {b.contractType === 'VARIABLE' ? `${b.variablePercentage}%` : `€${b.fixedValue}`}
-                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs text-slate-400">{b.id}</TableCell>
                   </TableRow>
                 ))}
-                {buildings.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-slate-400 py-8">
-                      No hay edificios configurados
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        {/* Gestión de CompSet (TurboSuite Style) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="text-red-500" />
+              CompSet (Competidores)
+            </CardTitle>
+            <CardDescription>Define qué competidores vigilar para cada edificio.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nombre Competidor</Label>
+                <Input 
+                  placeholder="Ej: Hotel Santiago" 
+                  value={newCompetitor.nombre}
+                  onChange={e => setNewCompetitor({...newCompetitor, nombre: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Edificio Propio</Label>
+                <Select 
+                  value={newCompetitor.edificio_id}
+                  onValueChange={v => setNewCompetitor({...newCompetitor, edificio_id: v})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildings.map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>URL Booking.com (Opcional)</Label>
+              <Input 
+                placeholder="https://www.booking.com/hotel/es/..." 
+                value={newCompetitor.url_booking}
+                onChange={e => setNewCompetitor({...newCompetitor, url_booking: e.target.value})}
+              />
+            </div>
+            <Button className="w-full bg-red-50 hover:bg-red-100 text-red-600 border-red-200" variant="outline" onClick={handleAddCompetitor}>
+              <Plus className="mr-2 h-4 w-4" /> Añadir al CompSet
+            </Button>
+
+            <div className="mt-6">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Competidor</TableHead>
+                    <TableHead>Vigila a...</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {competitors.map(c => (
+                    <TableRow key={c.id}>
+                      <TableCell className="text-sm font-medium">{c.nombre}</TableCell>
+                      <TableCell className="text-xs text-slate-500">
+                        {buildings.find(b => b.id === c.edificio_id)?.name}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteCompetitor(c.id)}>
+                          <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
