@@ -122,7 +122,7 @@ export default function BuildingManager() {
               <TableBody>
                 {buildings.map(b => (
                   <TableRow key={b.id}>
-                    <TableCell className="font-medium">{b.name}</TableCell>
+                    <TableCell className="font-medium">{b.nombre}</TableCell>
                     <TableCell className="text-right font-mono text-xs text-slate-400">{b.id}</TableCell>
                   </TableRow>
                 ))}
@@ -161,7 +161,7 @@ export default function BuildingManager() {
                   </SelectTrigger>
                   <SelectContent>
                     {buildings.map(b => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -193,7 +193,7 @@ export default function BuildingManager() {
                     <TableRow key={c.id}>
                       <TableCell className="text-sm font-medium">{c.nombre}</TableCell>
                       <TableCell className="text-xs text-slate-500">
-                        {buildings.find(b => b.id === c.edificio_id)?.name}
+                        {buildings.find(b => b.id === c.edificio_id)?.nombre}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteCompetitor(c.id)}>
@@ -251,7 +251,7 @@ export default function BuildingManager() {
                         <SelectContent>
                           <SelectItem value="none" disabled>Sin asignar</SelectItem>
                           {buildings.map(b => (
-                            <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                            <SelectItem key={b.id} value={b.id}>{b.nombre}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

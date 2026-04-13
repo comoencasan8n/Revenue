@@ -48,10 +48,29 @@ CREATE TABLE IF NOT EXISTS rack_history (
     ocupado BOOLEAN DEFAULT FALSE,
     precio_bruto DECIMAL(10, 2) DEFAULT 0,
     precio_neto_base DECIMAL(10, 2) DEFAULT 0,
+    comision_estimada DECIMAL(10, 2) DEFAULT 0,
+    ingresos_extra DECIMAL(10, 2) DEFAULT 0, -- Para TrevPAR
     canal TEXT,
     id_reserva INTEGER,
+    cliente_nombre TEXT,
+    cliente_apellidos TEXT,
     last_synced_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(fecha, habitacion_id)
+);
+
+-- 9. Tabla de Clientes (CRM)
+CREATE TABLE IF NOT EXISTS guests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre TEXT,
+    apellidos TEXT,
+    nombre_completo TEXT UNIQUE,
+    email TEXT,
+    telefono TEXT,
+    ultima_estancia DATE,
+    canal_preferido TEXT,
+    total_reservas INTEGER DEFAULT 1,
+    total_gastado DECIMAL(10, 2) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 7. Tabla de Gastos (Subida desde Excel)
@@ -61,6 +80,7 @@ CREATE TABLE IF NOT EXISTS gastos (
     edificio_id UUID REFERENCES edificios(id) ON DELETE CASCADE,
     concepto TEXT NOT NULL,
     importe_base DECIMAL(10, 2) NOT NULL,
+    categoria TEXT DEFAULT 'OPERATIVO' CHECK (categoria IN ('OPERATIVO', 'MARKETING', 'VENTAS', 'OTROS')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -103,6 +123,7 @@ ALTER TABLE competidores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rack_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gastos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE guests ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de acceso total para el Service Role
 DO $$ 
@@ -115,7 +136,14 @@ BEGIN
         CREATE POLICY "Acceso total Service Role" ON rack_history USING (true);
         CREATE POLICY "Acceso total Service Role" ON gastos USING (true);
         CREATE POLICY "Acceso total Service Role" ON sync_logs USING (true);
+        CREATE POLICY "Acceso total Service Role" ON guests USING (true);
     END IF;
 END $$;
+
+-- 10. Índices de rendimiento
+CREATE INDEX IF NOT EXISTS idx_rack_history_fecha ON rack_history(fecha);
+CREATE INDEX IF NOT EXISTS idx_rack_history_alojamiento ON rack_history(alojamiento_id);
+CREATE INDEX IF NOT EXISTS idx_gastos_fecha ON gastos(fecha);
+CREATE INDEX IF NOT EXISTS idx_gastos_edificio ON gastos(edificio_id);
 
 NOTIFY pgrst, 'reload schema';

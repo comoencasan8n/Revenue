@@ -8,6 +8,8 @@ import Layout from './components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/src/components/ui/card';
 import BuildingManager from './components/BuildingManager';
 import ExpensesManager from './components/ExpensesManager';
+import CRMManager from './components/CRMManager';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import Login from './components/Login';
 import { fetchRackData } from './services/moncakeService';
 import { RackData, User } from './types';
@@ -27,13 +29,25 @@ export default function App() {
   const [rackData, setRackData] = useState<RackData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [summary, setSummary] = useState<any>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('rms_user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      // Configurar token global para axios
+      axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.id}`;
+    }
   }, []);
 
   useEffect(() => {
+    if (user && activeTab === 'dashboard') {
+      axios.get('/api/analytics/dashboard-summary')
+        .then(res => setSummary(res.data))
+        .catch(err => console.error("Error fetching summary:", err));
+    }
+    
     if (user && (activeTab === 'matrix' || activeTab === 'dashboard')) {
       setIsLoading(true);
       fetchRackData({})
@@ -45,11 +59,13 @@ export default function App() {
   const handleLogin = (userData: User) => {
     setUser(userData);
     localStorage.setItem('rms_user', JSON.stringify(userData));
+    axios.defaults.headers.common['Authorization'] = `Bearer ${userData.id}`;
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('rms_user');
+    delete axios.defaults.headers.common['Authorization'];
   };
 
   const handleHistoricalSync = async () => {
@@ -81,7 +97,9 @@ export default function App() {
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">
               {activeTab === 'dashboard' && 'Dashboard Ejecutivo'}
+              {activeTab === 'analytics' && 'Análisis de Rendimiento'}
               {activeTab === 'matrix' && 'Revenue Matrix'}
+              {activeTab === 'crm' && 'CRM de Clientes'}
               {activeTab === 'expenses' && 'Gestión de Gastos'}
               {activeTab === 'buildings' && 'Gestión de Edificios'}
               {activeTab === 'admin' && 'Configuración del Sistema'}
@@ -118,11 +136,11 @@ export default function App() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">RevPAR (Base Imp.)</CardTitle>
+                  <CardTitle className="text-sm font-medium">RevPAR (Neto)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">€45.20</div>
-                  <p className="text-xs text-green-600">+12% vs mes anterior</p>
+                  <div className="text-2xl font-bold">€{summary?.revpar || '0.00'}</div>
+                  <p className="text-xs text-slate-500">Mes actual</p>
                 </CardContent>
               </Card>
               <Card>
@@ -130,17 +148,17 @@ export default function App() {
                   <CardTitle className="text-sm font-medium">Ocupación Media</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">78.4%</div>
-                  <p className="text-xs text-blue-600">+5.2% vs mes anterior</p>
+                  <div className="text-2xl font-bold">{summary?.occupancy || '0'}%</div>
+                  <p className="text-xs text-slate-500">Mes actual</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">ADR (Base Imp.)</CardTitle>
+                  <CardTitle className="text-sm font-medium">ADR (Neto)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">€57.65</div>
-                  <p className="text-xs text-green-600">+2.4% vs mes anterior</p>
+                  <div className="text-2xl font-bold">€{summary?.adr || '0.00'}</div>
+                  <p className="text-xs text-slate-500">Mes actual</p>
                 </CardContent>
               </Card>
               <Card>
@@ -148,11 +166,15 @@ export default function App() {
                   <CardTitle className="text-sm font-medium">GOPPAR Est.</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">€28.15</div>
+                  <div className="text-2xl font-bold">€{summary?.goppar || '0.00'}</div>
                   <p className="text-xs text-slate-500">Calculado con costes reales</p>
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsDashboard />
           )}
 
           {activeTab === 'matrix' && (
@@ -181,10 +203,10 @@ export default function App() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {rackData?.habitaciones.map(room => {
+                      {rackData?.habitaciones?.map((room, idx) => {
                         const res = room.reservas[0];
                         return (
-                          <TableRow key={room.idhabitacion}>
+                          <TableRow key={`${room.idhabitacion}-${idx}`}>
                             <TableCell className="font-medium">{room.nombre}</TableCell>
                             <TableCell className="text-xs text-slate-500">{room.nombre_alojamiento}</TableCell>
                             <TableCell>
@@ -217,6 +239,10 @@ export default function App() {
 
           {activeTab === 'expenses' && (
             <ExpensesManager />
+          )}
+
+          {activeTab === 'crm' && (
+            <CRMManager />
           )}
 
           {activeTab === 'buildings' && (

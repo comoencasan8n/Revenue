@@ -51,7 +51,7 @@ export default function ExpensesManager() {
             Importar Gastos (Excel)
           </CardTitle>
           <CardDescription>
-            Sube un archivo .xlsx con las columnas: <b>Fecha</b> (YYYY-MM-DD), <b>Edificio</b>, <b>Concepto</b> e <b>Importe</b>.
+            Sube un archivo .xlsx con las columnas: <b>Fecha</b> (DD-MM-YYYY), <b>Edificio</b>, <b>Concepto</b> e <b>Importe</b>.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -122,7 +122,7 @@ export default function ExpensesManager() {
               <div>
                 <p className="text-sm font-semibold text-amber-900">Formato de Fecha</p>
                 <p className="text-xs text-amber-700 mt-1">
-                  Usa el formato estándar ISO: YYYY-MM-DD para evitar errores de interpretación.
+                  Usa el formato: DD-MM-YYYY (ej: 08-04-2026) para asegurar la correcta importación.
                 </p>
               </div>
             </div>

@@ -23,7 +23,9 @@ interface LayoutProps {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'analytics', label: 'Análisis Pro', icon: TrendingUp },
   { id: 'matrix', label: 'Revenue Matrix', icon: TableIcon },
+  { id: 'crm', label: 'CRM Clientes', icon: Users },
   { id: 'expenses', label: 'Gastos (Excel)', icon: Receipt },
   { id: 'buildings', label: 'Edificios', icon: Building2 },
   { id: 'admin', label: 'Mi Cuenta', icon: Settings },
@@ -81,10 +83,12 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
         <header className="md:hidden flex items-center justify-between p-4 bg-slate-950 text-white">
           <h1 className="text-lg font-bold">Como en Casa</h1>
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu />
-              </Button>
+            <SheetTrigger
+              className={cn(
+                "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 size-8 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50"
+              )}
+            >
+              <Menu />
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64 bg-slate-950 border-r-slate-900">
               <SidebarContent />
